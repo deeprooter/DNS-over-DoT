@@ -41,3 +41,8 @@ Implementing **DNS over TLS (DoT)** completely wraps the raw requests your netwo
 * **Censorship & Manipulation:** External parties (such as your ISP) can alter unencrypted DNS results to block you from accessing certain services or force unwanted ads onto your browser.
 
 DNS over TLS prevents ISP hijacking and DNS spoofing. Implementing DoT ensures that these internal routing requests remain encrypted and tamper-proof.
+
+
+# Test Results #
+![Alt text](https://github.com/deeprooter/DNS-over-DoT/edit/main/README.md)
+
