@@ -44,5 +44,5 @@ DNS over TLS prevents ISP hijacking and DNS spoofing. Implementing DoT ensures t
 
 
 # Test Results #
-![Alt text](https://github.com/deeprooter/DNS-over-DoT/edit/main/README.md)
+![terminal output](https://github.com/deeprooter/DNS-over-DoT/blob/main/test-results.png)
 
