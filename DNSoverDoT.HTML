@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pi-hole DNS Query Flow Diagram</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0a0f1a;
+      --bg-soft:#10192a;
+      --panel:#111c30cc;
+      --panel-strong:#14233d;
+      --line:#5eead4;
+      --line-soft:#2dd4bf;
+      --text:#ecfeff;
+      --muted:#9fb3c8;
+      --accent:#7dd3fc;
+      --accent-2:#a78bfa;
+      --glow:0 0 0 1px rgba(125,211,252,.15), 0 20px 60px rgba(13,24,46,.45);
+      --radius:22px;
+      --grid:rgba(255,255,255,.05);
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Space Grotesk",sans-serif;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(125,211,252,.16), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(167,139,250,.14), transparent 26%),
+        linear-gradient(180deg, #08101b 0%, #0b1322 100%);
+      color:var(--text);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size:36px 36px;
+      mask-image:linear-gradient(to bottom, rgba(0,0,0,.6), rgba(0,0,0,.15));
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .page{
+      position:relative;
+      z-index:1;
+      width:min(1300px, calc(100% - 2rem));
+      margin:0 auto;
+      padding:clamp(2rem, 4vw, 4rem) 0 4rem;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns:1.25fr .75fr;
+      gap:2rem;
+      align-items:end;
+      margin-bottom:2rem;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:.6rem;
+      padding:.45rem .8rem;
+      border:1px solid rgba(125,211,252,.2);
+      background:rgba(17,28,48,.5);
+      backdrop-filter:blur(10px);
+      border-radius:999px;
+      font-size:.82rem;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:var(--accent);
+      margin-bottom:1rem;
+    }
+
+    .eyebrow::before{
+      content:"";
+      width:.55rem;
+      height:.55rem;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--line),var(--accent));
+      box-shadow:0 0 16px rgba(94,234,212,.6);
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(2.4rem, 6vw, 5.4rem);
+      line-height:.95;
+      letter-spacing:-.05em;
+      max-width:10ch;
+    }
+
+    .hero p{
+      margin:1rem 0 0;
+      max-width:60ch;
+      color:var(--muted);
+      font-size:clamp(1rem, 1.6vw, 1.1rem);
+      line-height:1.7;
+    }
+
+    .legend{
+      justify-self:end;
+      width:100%;
+      max-width:340px;
+      padding:1.2rem;
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(17,28,48,.72), rgba(10,18,31,.92));
+      border:1px solid rgba(125,211,252,.16);
+      backdrop-filter:blur(14px);
+      box-shadow:var(--glow);
+    }
+
+    .legend h2{
+      margin:0 0 .9rem;
+      font-size:1rem;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--accent);
+      font-family:"IBM Plex Mono", monospace;
+    }
+
+    .legend ul{
+      list-style:none;
+      margin:0;
+      padding:0;
+      display:grid;
+      gap:.8rem;
+    }
+
+    .legend li{
+      color:var(--muted);
+      font-size:.95rem;
+      line-height:1.5;
+      display:flex;
+      gap:.75rem;
+      align-items:flex-start;
+    }
+
+    .badge{
+      flex:0 0 auto;
+      min-width:1.9rem;
+      height:1.9rem;
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      font-family:"IBM Plex Mono", monospace;
+      font-size:.82rem;
+      color:#06111d;
+      background:linear-gradient(135deg,var(--line),var(--accent));
+      font-weight:600;
+      box-shadow:0 8px 20px rgba(94,234,212,.22);
+    }
+
+    .diagram-wrap{
+      position:relative;
+      padding:clamp(1rem, 2vw, 1.5rem);
+      border-radius:30px;
+      background:linear-gradient(180deg, rgba(17,28,48,.55), rgba(8,14,25,.8));
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--glow);
+      overflow:auto;
+    }
+
+    .diagram{
+      min-width:1100px;
+      display:grid;
+      grid-template-columns: 320px 180px 320px;
+      grid-template-rows: auto 90px auto 90px auto 90px auto;
+      align-items:center;
+      justify-content:center;
+      gap:0;
+      padding:1rem;
+    }
+
+    .node{
+      position:relative;
+      background:
+        linear-gradient(180deg, rgba(20,35,61,.88), rgba(11,20,35,.96));
+      border:1px solid rgba(125,211,252,.18);
+      border-radius:24px;
+      min-height:130px;
+      padding:1.2rem;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 14px 40px rgba(0,0,0,.35);
+      transform:translateY(18px);
+      opacity:0;
+      animation:rise .7s ease forwards;
+    }
+
+    .node:nth-child(1){animation-delay:.05s}
+    .node:nth-child(3){animation-delay:.18s}
+    .node:nth-child(5){animation-delay:.31s}
+    .node:nth-child(7){animation-delay:.44s}
+    .node:nth-child(9){animation-delay:.57s}
+    .node:nth-child(11){animation-delay:.70s}
+
+    .node::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:inherit;
+      background:
+        radial-gradient(circle at top left, rgba(125,211,252,.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(167,139,250,.1), transparent 28%);
+      pointer-events:none;
+    }
+
+    .node.client{grid-column:1; grid-row:1;}
+    .node.local-top{grid-column:3; grid-row:1;}
+    .node.upstream-top{grid-column:3; grid-row:3;}
+    .node.auth{grid-column:3; grid-row:5;}
+    .node.upstream-bottom{grid-column:3; grid-row:7;}
+    .node.local-bottom{grid-column:3; grid-row:9;}
+
+    .node h3{
+      margin:0 0 .35rem;
+      font-size:1.1rem;
+      letter-spacing:-.02em;
+    }
+
+    .node p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.95rem;
+    }
+
+    .mono{
+      font-family:"IBM Plex Mono", monospace;
+      color:var(--accent);
+      font-size:.9rem;
+      margin-bottom:.55rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .connector{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family:"IBM Plex Mono", monospace;
+      color:var(--text);
+      opacity:0;
+      transform:translateY(10px);
+      animation:fadeUp .6s ease forwards;
+    }
+
+    .connector span{
+      position:relative;
+      z-index:2;
+      color:var(--text);
+      font-size:.83rem;
+      letter-spacing:.02em;
+      background:rgba(10,15,26,.88);
+      padding:.35rem .6rem;
+      border-radius:999px;
+      border:1px solid rgba(125,211,252,.14);
+      white-space:nowrap;
+    }
+
+    .connector.h{
+      grid-column:2;
+      grid-row:1;
+      min-height:100%;
+    }
+
+    .connector.h::before,
+    .connector.h::after{
+      content:"";
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%);
+      height:2px;
+      background:linear-gradient(90deg, rgba(94,234,212,.1), var(--line), rgba(94,234,212,.1));
+      width:100%;
+    }
+
+    .connector.h::after{
+      width:16px;
+      height:16px;
+      right:0;
+      top:50%;
+      transform:translateY(-50%) rotate(45deg);
+      border-top:2px solid var(--line);
+      border-right:2px solid var(--line);
+      background:none;
+    }
+
+    .connector.h.back{
+      grid-column:2;
+      grid-row:1;
+      margin-top:56px;
+    }
+
+    .connector.h.back::after{
+      right:auto;
+      left:0;
+      transform:translateY(-50%) rotate(225deg);
+    }
+
+    .connector.v{
+      grid-column:3;
+      min-height:90px;
+    }
+
+    .connector.v.r2{grid-row:2; animation-delay:.22s;}
+    .connector.v.r4{grid-row:4; animation-delay:.42s;}
+    .connector.v.r6{grid-row:6; animation-delay:.62s;}
+    .connector.v.r8{grid-row:8; animation-delay:.82s;}
+
+    .connector.v::before{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:0;
+      transform:translateX(-50%);
+      width:2px;
+      height:100%;
+      background:linear-gradient(180deg, rgba(94,234,212,.08), var(--line), rgba(94,234,212,.08));
+    }
+
+    .connector.v::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      bottom:0;
+      width:14px;
+      height:14px;
+      transform:translate(-50%, 0) rotate(135deg);
+      border-top:2px solid var(--line);
+      border-right:2px solid var(--line);
+    }
+
+    .connector.v span{
+      position:absolute;
+      left:calc(50% + 18px);
+      top:50%;
+      transform:translateY(-50%);
+      max-width:220px;
+      white-space:normal;
+    }
+
+    .footer-note{
+      margin-top:1rem;
+      color:var(--muted);
+      font-size:.92rem;
+      line-height:1.6;
+      padding-left:.2rem;
+    }
+
+    .reveal{
+      opacity:0;
+      transform:translateY(18px);
+      transition:opacity .7s ease, transform .7s ease;
+    }
+
+    .reveal.visible{
+      opacity:1;
+      transform:translateY(0);
+    }
+
+    @keyframes rise{
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    @keyframes fadeUp{
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    @media (max-width: 980px){
+      .hero{
+        grid-template-columns:1fr;
+      }
+      .legend{
+        justify-self:start;
+        max-width:none;
+      }
+    }
+
+    @media (max-width: 720px){
+      .page{
+        width:min(100% - 1rem, 1300px);
+      }
+      .diagram-wrap{
+        border-radius:22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero reveal">
+      <div>
+        <div class="eyebrow">Network Resolution Flow</div>
+        <h1>Pi-hole DNS Query Path</h1>
+        <p>
+          A visual flow diagram showing how a client browser asks a local Pi-hole for a domain,
+          how cached requests are answered immediately, and how uncached requests move upstream
+          through DNS-over-TLS recursion before the resolved IP is returned.
+        </p>
+      </div>
+
+      <aside class="legend" aria-label="Flow legend">
+        <h2>Sequence</h2>
+        <ul>
+          <li><span class="badge">1</span><span>Client sends a request for a URL to the local Pi-hole.</span></li>
+          <li><span class="badge">2</span><span>If not cached, Pi-hole queries the upstream DoT DNS resolver.</span></li>
+          <li><span class="badge">3</span><span>The upstream resolver performs recursive lookup via root, TLD, and authoritative name servers.</span></li>
+          <li><span class="badge">4</span><span>The domain is resolved to an IP address.</span></li>
+          <li><span class="badge">5</span><span>The resolved IP is forwarded back to the local Pi-hole.</span></li>
+          <li><span class="badge">6</span><span>Pi-hole returns the final IP address to the client browser.</span></li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="diagram-wrap reveal" aria-label="DNS flow diagram">
+      <div class="diagram">
+        <article class="node client">
+          <div class="mono">Client</div>
+          <h3>Computer</h3>
+          <p>(Client Browser)</p>
+        </article>
+
+        <div class="connector h" style="animation-delay:.12s;">
+          <span>1. Request URL</span>
+        </div>
+
+        <article class="node local-top">
+          <div class="mono">Local Resolver</div>
+          <h3>Local Pi-hole</h3>
+          <p>(Local Cache)</p>
+        </article>
+
+        <div class="connector v r2">
+          <span>2. Query if not cached</span>
+        </div>
+
+        <article class="node upstream-top">
+          <div class="mono">Encrypted DNS</div>
+          <h3>Upstream DoT DNS Server</h3>
+          <p>(e.g., 1.1.1.1)</p>
+        </article>
+
+        <div class="connector v r4">
+          <span>3. Recursive lookup</span>
+        </div>
+
+        <article class="node auth">
+          <div class="mono">Authority Chain</div>
+          <h3>Root / TLD / Authoritative NS</h3>
+          <p>Hierarchy used to resolve the requested domain name.</p>
+        </article>
+
+        <div class="connector v r6">
+          <span>4. Resolve name to IP</span>
+        </div>
+
+        <article class="node upstream-bottom">
+          <div class="mono">Resolver Response</div>
+          <h3>Upstream DoT DNS Server</h3>
+          <p>Receives authoritative answer and prepares response downstream.</p>
+        </article>
+
+        <div class="connector v r8">
+          <span>5. Forward resolved IP</span>
+        </div>
+
+        <article class="node local-bottom">
+          <div class="mono">Cache + Return</div>
+          <h3>Local Pi-hole</h3>
+          <p>Stores response locally when appropriate and returns the final answer.</p>
+        </article>
+
+        <div class="connector h back" style="animation-delay:.95s;">
+          <span>6. Return IP</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note reveal">
+      This diagram emphasizes the difference between a <strong>cache hit</strong> at the local DNS (Pi-hole) and a
+      <strong>cache miss</strong> that requires an upstream recursive DNS resolution path.
+    </p>
+  </main>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
