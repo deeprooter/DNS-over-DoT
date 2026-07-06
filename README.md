@@ -43,6 +43,9 @@ Implementing **DNS over TLS (DoT)** completely wraps the raw requests your netwo
 DNS over TLS prevents ISP hijacking and DNS spoofing. Implementing DoT ensures that these internal routing requests remain encrypted and tamper-proof.
 
 
-# Test Results #
+# Test Results 1 #
 ![terminal output](https://github.com/deeprooter/DNS-over-DoT/blob/main/test-results.png)
+
+# Test Results 2 #
+# 1.1.1.1/help #
 
